@@ -19,6 +19,7 @@ https://github.com/Magisk-Modules-Repo/Pix3lify/issues/104
 And if we spoof Pixel device here, the distortion bug disappear, very weird indeed...
 (Tested on OnePlus7, not sure if this can solve the same bug on different device)
 ```
-Before
-
-After
+_Before_
+![](images/daydream.jpg)
+_After_
+![](images/daydream_fixed.jpg)
