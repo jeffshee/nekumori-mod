@@ -1,8 +1,12 @@
 package io.github.jeffshee.nekumorimod;
 
+import android.content.ContentResolver;
+import android.provider.Settings;
+
 import java.util.HashMap;
 import java.util.Map;
 
+import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XposedBridge;
@@ -12,6 +16,7 @@ public class XposedMod implements IXposedHookLoadPackage {
 
     private static final String RAKUTEN_EDY = "jp.edy.edyapp";
     private static final String GOOGLE_DAYDREAM = "com.google.android.vr.home";
+    private static final String JAPAN_POST = "jp.japanpost.jp_bank.bankbookapp";
 
     private static final Map<String, String> BUILD_NEXUS_6 = new HashMap<String, String>() {
         {
@@ -57,6 +62,13 @@ public class XposedMod implements IXposedHookLoadPackage {
                 XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
                 deviceSpoofing(lpparam.classLoader, BUILD_PIXEL);
                 break;
+            case JAPAN_POST:
+                /*
+                USB debug mode bypass for Japan Post Bank app. Sometimes the so-called "security check" is just ridiculous.
+                */
+                XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
+                debugModeSpoofing(lpparam.classLoader);
+                break;
         }
     }
 
@@ -66,6 +78,45 @@ public class XposedMod implements IXposedHookLoadPackage {
         XposedHelpers.setStaticObjectField(findClass, "BRAND", build.get("BRAND"));
         XposedHelpers.setStaticObjectField(findClass, "PRODUCT", build.get("PRODUCT"));
         XposedHelpers.setStaticObjectField(findClass, "DEVICE", build.get("DEVICE"));
+    }
+
+    private void debugModeSpoofing(ClassLoader classLoader) {
+        // https://github.com/redlee90/Hide-USB-Debugging-Mode
+        XposedHelpers.findAndHookMethod("android.provider.Settings.Global", classLoader, "getInt", ContentResolver.class, String.class, int.class, new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(XC_MethodHook.MethodHookParam param) throws Throwable {
+                if (param.args[1].equals(Settings.Global.ADB_ENABLED)) {
+                    param.setResult(0);
+                }
+            }
+        });
+
+        XposedHelpers.findAndHookMethod("android.provider.Settings.Global", classLoader, "getInt", ContentResolver.class, String.class, new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                if (param.args[1].equals(Settings.Global.ADB_ENABLED)) {
+                    param.setResult(0);
+                }
+            }
+        });
+
+        XposedHelpers.findAndHookMethod("android.provider.Settings.Secure", classLoader, "getInt", ContentResolver.class, String.class, int.class, new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                if (param.args[1].equals(Settings.Secure.ADB_ENABLED)) {
+                    param.setResult(0);
+                }
+            }
+        });
+
+        XposedHelpers.findAndHookMethod("android.provider.Settings.Secure", classLoader, "getInt", ContentResolver.class, String.class, new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                if (param.args[1].equals(Settings.Secure.ADB_ENABLED)) {
+                    param.setResult(0);
+                }
+            }
+        });
     }
 
 }
