@@ -23,3 +23,11 @@ _Before_
 ![](images/daydream.jpg)
 _After_
 ![](images/daydream_fixed.jpg)
+
+- Japan Post Bank
+```
+USB debug mode bypass for Japan Post Bank app.
+```
+
+- Remove Lock Screen Album Art (Android 10 only)
+![](images/album_art_removed.jpg)

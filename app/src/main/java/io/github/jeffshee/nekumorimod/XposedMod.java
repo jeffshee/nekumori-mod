@@ -1,15 +1,17 @@
 package io.github.jeffshee.nekumorimod;
 
 import android.content.ContentResolver;
+import android.os.Build;
 import android.provider.Settings;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.IXposedHookLoadPackage;
+import de.robv.android.xposed.XC_MethodHook;
+import de.robv.android.xposed.XC_MethodReplacement;
 import de.robv.android.xposed.XposedBridge;
+import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
 public class XposedMod implements IXposedHookLoadPackage {
@@ -17,6 +19,7 @@ public class XposedMod implements IXposedHookLoadPackage {
     private static final String RAKUTEN_EDY = "jp.edy.edyapp";
     private static final String GOOGLE_DAYDREAM = "com.google.android.vr.home";
     private static final String JAPAN_POST = "jp.japanpost.jp_bank.bankbookapp";
+    private static final String SYSYEM_UI = "com.android.systemui";
 
     private static final Map<String, String> BUILD_NEXUS_6 = new HashMap<String, String>() {
         {
@@ -69,6 +72,15 @@ public class XposedMod implements IXposedHookLoadPackage {
                 XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
                 debugModeSpoofing(lpparam.classLoader);
                 break;
+            case SYSYEM_UI:
+                /*
+                Disable lock screen album art (Android 10 only)
+                 */
+                if (android.os.Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+                    XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
+                    disableLockScreenAlbumArt(lpparam.classLoader);
+                }
+                break;
         }
     }
 
@@ -115,6 +127,19 @@ public class XposedMod implements IXposedHookLoadPackage {
                 if (param.args[1].equals(Settings.Secure.ADB_ENABLED)) {
                     param.setResult(0);
                 }
+            }
+        });
+    }
+
+    private void disableLockScreenAlbumArt(ClassLoader classLoader) {
+        /*
+        Since only updateMediaMetaData called getMediaMetadata, replacing this method to return null should be OK
+         */
+        XposedHelpers.findAndHookMethod("com.android.systemui.statusbar.NotificationMediaManager", classLoader, "getMediaMetadata", new XC_MethodReplacement() {
+            @Override
+            protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                XposedBridge.log("(NekumoriMOD) " + "disableLockScreenAlbumArt");
+                return null;
             }
         });
     }
