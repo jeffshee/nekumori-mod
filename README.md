@@ -29,5 +29,11 @@ _After_
 USB debug mode bypass for Japan Post Bank app.
 ```
 
-- Remove Lock Screen Album Art (Android 10 only)
+- Remove Lock Screen Album Art (OxygenOS 10)
 ![](images/album_art_removed.jpg)
+- Remove Lock Screen Album Art (OxygenOS 11)
+```
+OnePlus added the shyt functionality back to the OxygenOS 11?
+Don't worry, I got your back!
+```
+![](images/album_art_removed_a11.jpg)

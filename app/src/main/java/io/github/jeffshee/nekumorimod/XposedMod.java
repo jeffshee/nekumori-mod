@@ -74,11 +74,14 @@ public class XposedMod implements IXposedHookLoadPackage {
                 break;
             case SYSYEM_UI:
                 /*
-                Disable lock screen album art (Android 10 only)
+                Disable lock screen album art (Android 10, 11 only)
                  */
                 if (android.os.Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
                     XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
                     disableLockScreenAlbumArt(lpparam.classLoader);
+                } else if (android.os.Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
+                    XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
+                    disableLockScreenAlbumArtA11(lpparam.classLoader);
                 }
                 break;
         }
@@ -142,6 +145,15 @@ public class XposedMod implements IXposedHookLoadPackage {
                 return null;
             }
         });
+    }
+
+    private void disableLockScreenAlbumArtA11(ClassLoader classLoader) {
+        /*
+        Google finally removed this shyt from Android 11, but why it's still enabled in OxygenOS 11?
+         */
+        Class findClass = XposedHelpers.findClass("com.android.systemui.statusbar.phone.StatusBar", classLoader);
+        XposedHelpers.setStaticObjectField(findClass, "SHOW_LOCKSCREEN_MEDIA_ARTWORK", false);
+        XposedBridge.log("(NekumoriMOD) " + "disableLockScreenAlbumArtA11");
     }
 
 }
