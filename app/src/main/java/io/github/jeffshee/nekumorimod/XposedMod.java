@@ -76,13 +76,14 @@ public class XposedMod implements IXposedHookLoadPackage {
                 /*
                 Disable lock screen album art (Android 10, 11 only)
                  */
-                if (android.os.Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+                if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
                     disableLockScreenAlbumArt(lpparam.classLoader);
-                } else if (android.os.Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
-                    XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
-                    disableLockScreenAlbumArtA11(lpparam.classLoader);
                 }
+//                else if (android.os.Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
+//                    XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
+//                    disableLockScreenAlbumArtA11(lpparam.classLoader);
+//                }
                 break;
         }
     }
