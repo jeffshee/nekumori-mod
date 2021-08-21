@@ -1,6 +1,8 @@
 package io.github.jeffshee.nekumorimod;
 
+import android.app.Notification;
 import android.content.ContentResolver;
+import android.content.Context;
 import android.content.pm.FeatureInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -34,9 +36,12 @@ public class XposedMod implements IXposedHookLoadPackage {
     private static final String ANT_HAL_SERVICE = "com.dsi.ant.server";
     // Dummy app for testing purpose
     private static final String DAYDREAM_DETECTOR = "io.github.jeffshee.daydreamdetector";
+    // AptX Bluetooth
+    private static final String APTX_BLUETOOTH = "com.qualcomm.qtil.aptxui";
     //
     private static final String ENABLED_VR_LISTENERS = "enabled_vr_listeners";
     private static final String ENABLED_VR_LISTENERS_RESULT = "com.google.vr.vrcore/com.google.vr.vrcore.common.VrCoreListenerService";
+
 
     /*
     ro.product.model=Pixel 3 XL
@@ -71,7 +76,7 @@ public class XposedMod implements IXposedHookLoadPackage {
                 https://edy.rakuten.co.jp/howto/android/nfc/support/
                  */
                 XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
-                deviceSpoofing(lpparam.classLoader, "Nexus 6", "google", "shamu", "shamu");
+                deviceSpoofing(lpparam, "Nexus 6", "google", "shamu", "shamu");
                 break;
             case GOOGLE_DAYDREAM:
             case GOOGLE_VR_SERVICES:
@@ -85,7 +90,7 @@ public class XposedMod implements IXposedHookLoadPackage {
                 (Tested on OnePlus7, not sure if this can solve the same bug on different device)
                  */
                 XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
-                deviceSpoofing(lpparam.classLoader, "Pixel", "google", "sailfish", "sailfish");
+                deviceSpoofing(lpparam, "Pixel", "google", "sailfish", "sailfish");
             case FUSED_LOCATION:
             case ANDROID:
             case SETTINGS_STORAGE:
@@ -96,14 +101,14 @@ public class XposedMod implements IXposedHookLoadPackage {
                 Trying a new approach to enable Daydream using Xposed Framework.
                  */
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
-                    enableDaydreamVR(lpparam.classLoader, lpparam.packageName);
+                    enableDaydreamVR(lpparam);
                 break;
             case JAPAN_POST:
                 /*
                 USB debug mode bypass for Japan Post Bank app. Sometimes the so-called "security check" is just ridiculous.
                 */
                 XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
-                debugModeSpoofing(lpparam.classLoader);
+                debugModeSpoofing(lpparam);
                 break;
             case SYSYEM_UI:
                 /*
@@ -111,13 +116,29 @@ public class XposedMod implements IXposedHookLoadPackage {
                  */
                 if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
-                    disableLockScreenAlbumArt(lpparam.classLoader);
+                    disableLockScreenAlbumArt(lpparam);
                 }
                 break;
+            case APTX_BLUETOOTH:
+                /*
+                Disable the stupid "Device supports Qualcomm® aptX™" notification.
+                */
+                disableNotification(lpparam);
+                break;
+            default:
+                /*
+                Enable DayDreamVR by default, as some VR apps might actually check for hasSystemFeature.
+                VR apps should be added to the LSPosed's scope for it to work.
+                 */
+                XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+                    enableDaydreamVR(lpparam);
+                disableNotification(lpparam);
         }
     }
 
-    private void deviceSpoofing(ClassLoader classLoader, String model, String brand, String product, String device) {
+    private void deviceSpoofing(LoadPackageParam lpparam, String model, String brand, String product, String device) {
+        ClassLoader classLoader = lpparam.classLoader;
         Class findClass = XposedHelpers.findClass("android.os.Build", classLoader);
         XposedHelpers.setStaticObjectField(findClass, "MODEL", model);
         XposedHelpers.setStaticObjectField(findClass, "BRAND", brand);
@@ -125,9 +146,10 @@ public class XposedMod implements IXposedHookLoadPackage {
         XposedHelpers.setStaticObjectField(findClass, "DEVICE", device);
     }
 
-    private void debugModeSpoofing(ClassLoader classLoader) {
+    private void debugModeSpoofing(LoadPackageParam lpparam) {
         // Resource:
         // https://github.com/redlee90/Hide-USB-Debugging-Mode
+        ClassLoader classLoader = lpparam.classLoader;
         XC_MethodHook methodHook = new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
@@ -142,10 +164,11 @@ public class XposedMod implements IXposedHookLoadPackage {
         XposedHelpers.findAndHookMethod("android.provider.Settings.Secure", classLoader, "getInt", ContentResolver.class, String.class, methodHook);
     }
 
-    private void disableLockScreenAlbumArt(ClassLoader classLoader) {
+    private void disableLockScreenAlbumArt(LoadPackageParam lpparam) {
         /*
         Since only updateMediaMetaData called getMediaMetadata, replacing this method to return null should be OK
          */
+        ClassLoader classLoader = lpparam.classLoader;
         XposedHelpers.findAndHookMethod("com.android.systemui.statusbar.NotificationMediaManager", classLoader, "getMediaMetadata", new XC_MethodReplacement() {
             @Override
             protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
@@ -154,7 +177,24 @@ public class XposedMod implements IXposedHookLoadPackage {
         });
     }
 
-    private void enableDaydreamVR(ClassLoader classLoader, final String packageName) {
+    private void disableNotification(LoadPackageParam lpparam) {
+        ClassLoader classLoader = lpparam.classLoader;
+        final String packageName= lpparam.packageName;
+        XposedHelpers.findAndHookMethod("android.app.NotificationManager", classLoader, "notify", String.class, int.class, Notification.class, new XC_MethodReplacement() {
+            @Override
+            protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                Notification notification = (Notification) param.args[2];
+                String content = null;
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+                    content = notification.extras.getString(Notification.EXTRA_TEXT);
+                }
+                XposedBridge.log("(NekumoriMOD) notification disabled \"" + content + "\" @" + packageName);
+                return null;
+            }
+        });
+    }
+
+    private void enableDaydreamVR(LoadPackageParam lpparam) {
         /*
          Resource:
          https://developer.android.com/reference/android/content/pm/FeatureInfo
@@ -167,6 +207,8 @@ public class XposedMod implements IXposedHookLoadPackage {
          https://forum.xda-developers.com/t/daydream-unlocker-nfc-workaround-controller-magisk.3917601/
          https://forum.xda-developers.com/t/magisk-module-bring-back-google-daydream-vr.4002823/ (<- best!)
         */
+        ClassLoader classLoader = lpparam.classLoader;
+        final String packageName = lpparam.packageName;
         XposedHelpers.findAndHookMethod("android.app.ApplicationPackageManager", classLoader, "getSystemAvailableFeatures", new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
@@ -204,11 +246,22 @@ public class XposedMod implements IXposedHookLoadPackage {
         XposedHelpers.findAndHookMethod("android.provider.Settings.Secure", classLoader, "getString", ContentResolver.class, String.class, new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                XposedBridge.log("(NekumoriMOD) getString hooked for " + Arrays.toString(param.args));
-                if (param.args[1].equals(ENABLED_VR_LISTENERS))
+                if (param.args[1].equals(ENABLED_VR_LISTENERS)) {
+                    XposedBridge.log("(NekumoriMOD) getString hooked for " + Arrays.toString(param.args));
                     param.setResult(ENABLED_VR_LISTENERS_RESULT);
+                }
             }
         });
     }
+
+    private Context getSystemContext(LoadPackageParam lpparam) {
+        ClassLoader classLoader = lpparam.classLoader;
+        return (Context) XposedHelpers.callMethod(
+                XposedHelpers.callStaticMethod(
+                        XposedHelpers.findClass("android.app.ActivityThread", classLoader),
+                        "currentActivityThread"),
+                "getSystemContext");
+    }
+
 
 }

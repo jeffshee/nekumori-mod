@@ -11,7 +11,8 @@ https://edy.rakuten.co.jp/howto/android/nfc/support/
 ```
 
 - Google Daydream
-```
+``` 
+NOTE: VR apps should be added to the LSPosed's scope for it to work.
 (Ver 1.3) A new approach to enable Daydream using Xposed Framework.
 Yep, there is no need to install another Magisk module! It works!
 ```
@@ -43,3 +44,6 @@ OnePlus added the sh*t functionality back to the OxygenOS 11?
 Don't worry, I got your back!
 ```
 ![](images/album_art_removed_a11.jpg)
+
+- Disable the stupid "Device supports Qualcomm® aptX™" notification
+![](images/aptx_notification.jpg)
