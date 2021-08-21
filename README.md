@@ -46,4 +46,5 @@ Don't worry, I got your back!
 ![](images/album_art_removed_a11.jpg)
 
 - Disable the stupid "Device supports Qualcomm® aptX™" notification
+
 ![](images/aptx_notification.jpg)
