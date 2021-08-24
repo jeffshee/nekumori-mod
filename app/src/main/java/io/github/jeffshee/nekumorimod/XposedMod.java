@@ -7,19 +7,23 @@ import android.content.pm.FeatureInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.provider.Settings;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Map;
 
+import de.robv.android.xposed.IXposedHookInitPackageResources;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XC_MethodReplacement;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
+import de.robv.android.xposed.callbacks.XC_InitPackageResources;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
-public class XposedMod implements IXposedHookLoadPackage {
+public class XposedMod implements IXposedHookLoadPackage, IXposedHookInitPackageResources {
 
     private static final String RAKUTEN_EDY = "jp.edy.edyapp";
     private static final String JAPAN_POST = "jp.japanpost.jp_bank.bankbookapp";
@@ -38,6 +42,8 @@ public class XposedMod implements IXposedHookLoadPackage {
     private static final String DAYDREAM_DETECTOR = "io.github.jeffshee.daydreamdetector";
     // AptX Bluetooth
     private static final String APTX_BLUETOOTH = "com.qualcomm.qtil.aptxui";
+    // OnePlus Launcher
+    private static final String ONEPLUS_LAUNCHER = "net.oneplus.launcher";
     //
     private static final String ENABLED_VR_LISTENERS = "enabled_vr_listeners";
     private static final String ENABLED_VR_LISTENERS_RESULT = "com.google.vr.vrcore/com.google.vr.vrcore.common.VrCoreListenerService";
@@ -75,7 +81,6 @@ public class XposedMod implements IXposedHookLoadPackage {
                 We spoof one of the supported device, Nexus 6 here. For more info, refer:
                 https://edy.rakuten.co.jp/howto/android/nfc/support/
                  */
-                XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
                 deviceSpoofing(lpparam, "Nexus 6", "google", "shamu", "shamu");
                 break;
             case GOOGLE_DAYDREAM:
@@ -89,7 +94,6 @@ public class XposedMod implements IXposedHookLoadPackage {
                 And if we spoof Pixel device here, the distortion bug disappear, very weird indeed...
                 (Tested on OnePlus7, not sure if this can solve the same bug on different device)
                  */
-                XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
                 deviceSpoofing(lpparam, "Pixel", "google", "sailfish", "sailfish");
             case FUSED_LOCATION:
             case ANDROID:
@@ -107,15 +111,13 @@ public class XposedMod implements IXposedHookLoadPackage {
                 /*
                 USB debug mode bypass for Japan Post Bank app. Sometimes the so-called "security check" is just ridiculous.
                 */
-                XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
                 debugModeSpoofing(lpparam);
                 break;
             case SYSYEM_UI:
                 /*
-                Disable lock screen album art (Android 10, 11 only)
+                Disable lock screen album art. (Android 10, 11 only)
                  */
                 if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
                     disableLockScreenAlbumArt(lpparam);
                 }
                 break;
@@ -125,12 +127,20 @@ public class XposedMod implements IXposedHookLoadPackage {
                 */
                 disableNotification(lpparam);
                 break;
+            case ONEPLUS_LAUNCHER:
+                /*
+                Hide "Clear All" button in Overview (Recent Screen).
+                NOTE:
+                This mod is NOT enabled by default.
+                User who need this feature should opt-in by adding "OnePlus Launcher" to the LSPosed's scope.
+                */
+                disableOverviewClearAll(lpparam);
+                break;
             default:
                 /*
                 Enable DayDreamVR by default, as some VR apps might actually check for hasSystemFeature.
                 VR apps should be added to the LSPosed's scope for it to work.
                  */
-                XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
                     enableDaydreamVR(lpparam);
                 disableNotification(lpparam);
@@ -138,6 +148,8 @@ public class XposedMod implements IXposedHookLoadPackage {
     }
 
     private void deviceSpoofing(LoadPackageParam lpparam, String model, String brand, String product, String device) {
+        XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
+
         ClassLoader classLoader = lpparam.classLoader;
         Class findClass = XposedHelpers.findClass("android.os.Build", classLoader);
         XposedHelpers.setStaticObjectField(findClass, "MODEL", model);
@@ -147,8 +159,12 @@ public class XposedMod implements IXposedHookLoadPackage {
     }
 
     private void debugModeSpoofing(LoadPackageParam lpparam) {
-        // Resource:
-        // https://github.com/redlee90/Hide-USB-Debugging-Mode
+        /*
+        Resource:
+        https://github.com/redlee90/Hide-USB-Debugging-Mode
+         */
+        XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
+
         ClassLoader classLoader = lpparam.classLoader;
         XC_MethodHook methodHook = new XC_MethodHook() {
             @Override
@@ -168,6 +184,8 @@ public class XposedMod implements IXposedHookLoadPackage {
         /*
         Since only updateMediaMetaData called getMediaMetadata, replacing this method to return null should be OK
          */
+        XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
+
         ClassLoader classLoader = lpparam.classLoader;
         XposedHelpers.findAndHookMethod("com.android.systemui.statusbar.NotificationMediaManager", classLoader, "getMediaMetadata", new XC_MethodReplacement() {
             @Override
@@ -178,8 +196,10 @@ public class XposedMod implements IXposedHookLoadPackage {
     }
 
     private void disableNotification(LoadPackageParam lpparam) {
+        XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
+
         ClassLoader classLoader = lpparam.classLoader;
-        final String packageName= lpparam.packageName;
+        final String packageName = lpparam.packageName;
         XposedHelpers.findAndHookMethod("android.app.NotificationManager", classLoader, "notify", String.class, int.class, Notification.class, new XC_MethodReplacement() {
             @Override
             protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
@@ -207,12 +227,15 @@ public class XposedMod implements IXposedHookLoadPackage {
          https://forum.xda-developers.com/t/daydream-unlocker-nfc-workaround-controller-magisk.3917601/
          https://forum.xda-developers.com/t/magisk-module-bring-back-google-daydream-vr.4002823/ (<- best!)
         */
+        XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
+
         ClassLoader classLoader = lpparam.classLoader;
         final String packageName = lpparam.packageName;
         XposedHelpers.findAndHookMethod("android.app.ApplicationPackageManager", classLoader, "getSystemAvailableFeatures", new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                XposedBridge.log("(NekumoriMOD) getSystemAvailableFeatures hooked" + " @" + packageName);
+                XposedBridge.log("(NekumoriMOD) DaydreamVR enabled @" + packageName);
+//                XposedBridge.log("(NekumoriMOD) getSystemAvailableFeatures hooked" + " @" + packageName);
 
                 Map<String, FeatureInfo> mAvailableFeatures = (Map<String, FeatureInfo>) param.getResult();
                 ArrayList<String> vrFeatures = new ArrayList<>();
@@ -234,7 +257,8 @@ public class XposedMod implements IXposedHookLoadPackage {
                 switch (param.args[0].toString()) {
                     case PackageManager.FEATURE_VR_MODE:
                     case PackageManager.FEATURE_VR_MODE_HIGH_PERFORMANCE:
-                        XposedBridge.log("(NekumoriMOD) hasSystemFeature hooked for " + Arrays.toString(param.args) + " @" + packageName);
+                        XposedBridge.log("(NekumoriMOD) DaydreamVR enabled @" + packageName);
+//                        XposedBridge.log("(NekumoriMOD) hasSystemFeature hooked for " + Arrays.toString(param.args) + " @" + packageName);
                         param.setResult(true);
                 }
             }
@@ -247,8 +271,56 @@ public class XposedMod implements IXposedHookLoadPackage {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                 if (param.args[1].equals(ENABLED_VR_LISTENERS)) {
-                    XposedBridge.log("(NekumoriMOD) getString hooked for " + Arrays.toString(param.args));
+//                    XposedBridge.log("(NekumoriMOD) getString hooked for " + Arrays.toString(param.args));
                     param.setResult(ENABLED_VR_LISTENERS_RESULT);
+                }
+            }
+        });
+    }
+
+    private void disableOverviewClearAll(LoadPackageParam lpparam) {
+        XposedBridge.log("(NekumoriMOD) " + lpparam.packageName);
+
+        ClassLoader classLoader = lpparam.classLoader;
+        XposedHelpers.findAndHookMethod("net.oneplus.quickstep.views.RecentsView", classLoader, "clickClearAll", View.class, new XC_MethodReplacement() {
+            @Override
+            protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                // OnClickListener
+                return null;
+            }
+        });
+        XposedHelpers.findAndHookMethod("net.oneplus.quickstep.views.RecentsView", classLoader, "resetClearAllState", int.class, new XC_MethodReplacement() {
+            @Override
+            protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                // This method set the visibility for Clear All button.
+                // param.args[0] is the visibility.
+                // Do nothing here.
+                return null;
+            }
+        });
+        XposedHelpers.findAndHookMethod("net.oneplus.quickstep.views.RecentsView", classLoader, "getClearAllAnimation", boolean.class, new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                // This method generate the animation for Clear All button.
+                // When the arg is set to true, it also change the button's visibility to "visible".
+                // This method is disabled by always injecting "false" to the arg.
+                param.args[0] = false;
+            }
+        });
+        XposedHelpers.findAndHookMethod("net.oneplus.quickstep.views.RecentsView", classLoader, "setupControlPanel", View.class, new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                // Make sure the view is a ViewGroup before casting.
+                if (!(param.args[0] instanceof ViewGroup))
+                    return;
+
+                ViewGroup viewGroup = (ViewGroup) param.args[0];
+                for (int index = 0; index < viewGroup.getChildCount(); index++) {
+                    View nextChild = viewGroup.getChildAt(index);
+                    if (nextChild instanceof TextView) {
+                        // The Clear All button is a TextView. Make it invisible.
+                        nextChild.setVisibility(View.INVISIBLE);
+                    }
                 }
             }
         });
@@ -264,4 +336,9 @@ public class XposedMod implements IXposedHookLoadPackage {
     }
 
 
+    @Override
+    public void handleInitPackageResources(final XC_InitPackageResources.InitPackageResourcesParam resparam) throws Throwable {
+
+    }
 }
+
